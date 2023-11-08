@@ -17,9 +17,15 @@ This application should be run on a physical Android device to take advantage of
      private val handler = KpsHandler()
      
      // Transform KPS from List<NormalizedLandmark> to MatOfPoint2f
+     // E.g.: From an CameraStream, we have ImageProxy of size 640x480 (rescaled),
+     // while the true size of the camera is 1600x900.
+     // In this case, imageWidth is 640 and imageHeight is 480:
+     val imageWidth: int = 640
+     val imageHeight: int = 480
      val kpsArray = handler.parseKps(faceLandmarkerResult.faceLandmarks()[0], imageWidth, imageHeight, true)
      
-     // Optional: Rescale the KPS, e.g.: 4:3 to 16:9
+     // Since 640x480 is of ratio 4:3, and the original size 1600x900 is of ratio 16:9
+     // Here we rescale the KPS back to the ratio of original size.
      val transformedKps = handler.rescaleKps(kpsArray, Pair(4.0, 3.0), Pair(16.0, 9.0))
      
      // Alignment process
