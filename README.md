@@ -1,3 +1,4 @@
+
 # MediaPipe Tasks Face Landmark Detection Android Demo
 
 ### Overview
@@ -9,7 +10,29 @@ The task file is downloaded by a Gradle script when you build and run the app. Y
 This application should be run on a physical Android device to take advantage of the camera.
 
 ## Build the demo using Android Studio
-
+### Example Usage
+```kotlin
+     import com.google.mediapipe.examples.facelandmarker.viewmodels.KpsHandler
+     // Initialize main handler class
+     private val handler = KpsHandler()
+     
+     // Transform KPS from List<NormalizedLandmark> to MatOfPoint2f
+     val kpsArray = handler.parseKps(faceLandmarkerResult.faceLandmarks()[0], imageWidth, imageHeight, true)
+     
+     // Optional: Rescale the KPS, e.g.: 4:3 to 16:9
+     val transformedKps = handler.rescaleKps(kpsArray, Pair(4.0, 3.0), Pair(16.0, 9.0))
+     
+     // Alignment process
+     bmpImage?.let {
+         // not null do something
+         // Transform Bmp -> Mat
+         val transformedImg = handler.parseImg(bmpImage!!)
+         // Alignment process here
+         val alignedImg = handler.normCrop(transformedImg, transformedKps, full = true)
+    	 // Transform Mat -> Bmp
+         val bmpAlignedImg = handler.reparseImg(alignedImg)
+     }
+```
 ### Prerequisites
 
 *   The **[Android Studio](https://developer.android.com/studio/index.html)** IDE. This sample has been tested on Android Studio Dolphin.
