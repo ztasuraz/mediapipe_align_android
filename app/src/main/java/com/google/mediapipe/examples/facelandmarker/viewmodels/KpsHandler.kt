@@ -73,7 +73,29 @@ class KpsHandler {
         }
     }
 
-    fun normCrop(img: Mat, lmk: MatOfPoint2f, full: Boolean): Mat {
+    fun rescaleKps(landmarks: MatOfPoint2f, originalScale: Pair<Double, Double>, inputScale: Pair<Double, Double>): MatOfPoint2f {
+
+        val originalWidth = originalScale.first
+        val originalHeight = originalScale.second
+        val newWidth = inputScale.first
+        val newHeight = inputScale.second
+
+        val widthScaleFactor = originalWidth / newWidth
+        val heightScaleFactor = originalHeight / newHeight
+        val tempList : MutableList<Point> = ArrayList()
+        val normalizedLandmarks = MatOfPoint2f()
+
+        for (point in landmarks.toList()) {
+            val normalizedX = point.x * widthScaleFactor
+            val normalizedY = point.y * heightScaleFactor
+            tempList.add(Point(normalizedX, normalizedY))
+        }
+        normalizedLandmarks.fromList(tempList)
+
+        return normalizedLandmarks
+    }
+
+    fun normCrop(img: Mat, lmk: MatOfPoint2f, full: Boolean, size: Double = 112.0): Mat {
         val inlier = Mat()
 
         val m: Mat = if (!full) {
@@ -89,17 +111,27 @@ class KpsHandler {
 //        if (m.type() != CvType.CV_32F) {
 //            m.convertTo(m, CvType.CV_32F)
 //        }
-        
+
         // Log the shape and data type of m
-        Log.d("NormCrop", "Shape of m: ${m.rows()} x ${m.cols()}, Data Type: ${CvType.typeToString(m.type())}")
+        Log.d(
+            "NormCrop",
+            "Shape of m: ${m.rows()} x ${m.cols()}, Data Type: ${CvType.typeToString(m.type())}"
+        )
 
         // Log the shape and data type of img
-        Log.d("NormCrop", "Shape of img: ${img.rows()} x ${img.cols()}, Data Type: ${CvType.typeToString(img.type())}")
+        Log.d(
+            "NormCrop",
+            "Shape of img: ${img.rows()} x ${img.cols()}, Data Type: ${CvType.typeToString(img.type())}"
+        )
 
-        warpAffine(img, crop, m, Size(112.0, 112.0))
+        // Perform affine
+        warpAffine(img, crop, m, Size(size, size))
 
         // Log the shape and data type of crop
-        Log.d("NormCrop", "Shape of crop: ${crop.rows()} x ${crop.cols()}, Data Type: ${CvType.typeToString(crop.type())}")
+        Log.d(
+            "NormCrop",
+            "Shape of crop: ${crop.rows()} x ${crop.cols()}, Data Type: ${CvType.typeToString(crop.type())}"
+        )
 
         return crop
     }

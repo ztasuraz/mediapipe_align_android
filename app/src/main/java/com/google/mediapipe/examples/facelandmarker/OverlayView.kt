@@ -101,7 +101,6 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
                 val transformedImg = KpsHandler().parseImg(bmpImage!!)
                 val alignedImg = KpsHandler().normCrop(transformedImg, transformedKps, full = true)
                 val bmpAlignedImg = KpsHandler().reparseImg(alignedImg)
-
             }
 
             FaceLandmarker.FACE_LANDMARKS_CONNECTORS.forEach {
