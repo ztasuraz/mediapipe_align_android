@@ -49,8 +49,7 @@ class FaceLandmarkerHelper(
     // For this example this needs to be a var so it can be reset on changes.
     // If the Face Landmarker will not change, a lazy val would be preferable.
     private var faceLandmarker: FaceLandmarker? = null
-    private var bmpImage: Bitmap? = null
-    private val bmpImageLock = Semaphore(1)
+    private val imgStack = ImageStack()
     init {
         setupFaceLandmarker()
     }
@@ -193,16 +192,17 @@ class FaceLandmarkerHelper(
         detectAsync(mpImage, frameTime)
     }
 
-    private fun saveBmpImage(mpImage: MPImage) {
-        bmpImageLock.acquire()
-        this.bmpImage = BitmapExtractor.extract(mpImage)
-    }
+//    private fun saveBmpImage(mpImage: MPImage) {
+//        bmpImageLock.acquire()
+//        this.bmpImage = BitmapExtractor.extract(mpImage)
+//    }
 
     // Run face face landmark using MediaPipe Face Landmarker API
     @VisibleForTesting
     fun detectAsync(mpImage: MPImage, frameTime: Long) {
         faceLandmarker?.detectAsync(mpImage, frameTime)
-        saveBmpImage(mpImage)
+        imgStack.addFrame(frameTime, BitmapExtractor.extract(mpImage))
+//        saveBmpImage(mpImage)
         // As we're using running mode LIVE_STREAM, the landmark result will
         // be returned in returnLivestreamResult function
     }
@@ -342,13 +342,13 @@ class FaceLandmarkerHelper(
         result: FaceLandmarkerResult,
         input: MPImage
     ) {
-        bmpImageLock.release()
-        val bmpInput = this.bmpImage
+//        bmpImageLock.release()
         val asyncInput = BitmapExtractor.extract(input)
         if( result.faceLandmarks().size > 0 ) {
             val finishTimeMs = SystemClock.uptimeMillis()
             val frameTime = result.timestampMs()
             val inferenceTime = finishTimeMs - result.timestampMs()
+            val bmpImage = this.imgStack.getFrameByTime(frameTime)
 
             faceLandmarkerHelperListener?.onResults(
                 ResultBundle(
