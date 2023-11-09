@@ -24,6 +24,7 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.VisibleForTesting
 import androidx.camera.core.ImageProxy
+import com.google.mediapipe.framework.image.BitmapExtractor
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
@@ -31,6 +32,7 @@ import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
+import java.util.concurrent.Semaphore
 
 class FaceLandmarkerHelper(
     var minFaceDetectionConfidence: Float = DEFAULT_FACE_DETECTION_CONFIDENCE,
@@ -47,7 +49,8 @@ class FaceLandmarkerHelper(
     // For this example this needs to be a var so it can be reset on changes.
     // If the Face Landmarker will not change, a lazy val would be preferable.
     private var faceLandmarker: FaceLandmarker? = null
-
+    private var bmpImage: Bitmap? = null
+    private val bmpImageLock = Semaphore(1)
     init {
         setupFaceLandmarker()
     }
@@ -187,14 +190,19 @@ class FaceLandmarkerHelper(
 
         // Convert the input Bitmap object to an MPImage object to run inference
         val mpImage = BitmapImageBuilder(rotatedBitmap).build()
-
         detectAsync(mpImage, frameTime)
+    }
+
+    private fun saveBmpImage(mpImage: MPImage) {
+        bmpImageLock.acquire()
+        this.bmpImage = BitmapExtractor.extract(mpImage)
     }
 
     // Run face face landmark using MediaPipe Face Landmarker API
     @VisibleForTesting
     fun detectAsync(mpImage: MPImage, frameTime: Long) {
         faceLandmarker?.detectAsync(mpImage, frameTime)
+        saveBmpImage(mpImage)
         // As we're using running mode LIVE_STREAM, the landmark result will
         // be returned in returnLivestreamResult function
     }
@@ -334,8 +342,12 @@ class FaceLandmarkerHelper(
         result: FaceLandmarkerResult,
         input: MPImage
     ) {
+        bmpImageLock.release()
+        val bmpInput = this.bmpImage
+        val asyncInput = BitmapExtractor.extract(input)
         if( result.faceLandmarks().size > 0 ) {
             val finishTimeMs = SystemClock.uptimeMillis()
+            val frameTime = result.timestampMs()
             val inferenceTime = finishTimeMs - result.timestampMs()
 
             faceLandmarkerHelperListener?.onResults(
