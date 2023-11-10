@@ -23,4 +23,19 @@ class ImageStack {
     fun getFrameTimes(): List<Long> {
         return frameTimeList
     }
+
+    // Remove frames older than the specified time in milliseconds
+    fun cleanupOldFrames(maxAgeMillis: Long) {
+        val currentTime = System.currentTimeMillis()
+        val iterator = frameTimeList.iterator()
+
+        while (iterator.hasNext()) {
+            val frameTime = iterator.next()
+            if (currentTime - frameTime > maxAgeMillis) {
+                // Remove outdated entry from the map and the list
+                frameTimeMap.remove(frameTime)
+                iterator.remove()
+            }
+        }
+    }
 }
