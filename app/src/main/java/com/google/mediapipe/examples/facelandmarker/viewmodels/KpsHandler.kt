@@ -17,7 +17,9 @@ import org.opencv.android.Utils.matToBitmap
 import org.opencv.core.MatOfInt
 import org.opencv.core.Size
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
+import org.opencv.calib3d.Calib3d.decomposeProjectionMatrix
 import org.opencv.core.CvType
+import org.opencv.core.CvType.CV_32F
 
 class KpsHandler {
 
@@ -257,6 +259,41 @@ class KpsHandler {
         return modifiedKps
     }
 
+    fun parseTransMatrix(floatArrays: FloatArray): FloatArray {
+        // Convert to cv array
+        val poseMat = Mat(4, 4, CV_32F)
+        poseMat.put(0, 0, floatArrays)
+
+
+        // Log the poseMat for debugging
+        println("Debug - poseMat:\n${poseMat.dump()}")
+
+
+        // Transpose for proper decomposition
+        val submatrix = Mat(poseMat, org.opencv.core.Rect(0, 0, 3, 4)).t()
+
+        println("Debug - submatrix:\n${submatrix.dump()}")
+//        // Decompose projection matrix
+        val cameraMatrix = Mat()
+        val rotMatrix = Mat()
+        val transVect = Mat()
+        val rotMatrixX = Mat()
+        val rotMatrixY = Mat()
+        val rotMatrixZ = Mat()
+        val eulerAngles = Mat()
+        decomposeProjectionMatrix(submatrix, cameraMatrix, rotMatrix, transVect, rotMatrixX, rotMatrixY, rotMatrixZ, eulerAngles)
+        println("Debug - submatrix:\n${eulerAngles.dump()}")
+        // Convert Mat to FloatArray
+        val eulerAnglesArray = FloatArray(eulerAngles.cols() * eulerAngles.rows())
+        eulerAngles.convertTo(eulerAngles, CV_32F)
+        eulerAngles.get(0, 0, eulerAnglesArray)
+
+        // Print the converted Euler angles for debugging
+        println("Debug - Euler Angles Array: ${eulerAnglesArray.contentToString()}")
+
+        return eulerAnglesArray
+    }
+
     // Function to convert from bitmap to mat
     fun parseImg(img: Bitmap): Mat {
         val mat = Mat()
@@ -264,6 +301,8 @@ class KpsHandler {
         bitmapToMat(bmp32, mat)
         return mat
     }
+
+
 
     fun reparseImg(img: Mat): Bitmap {
         val bmp = Bitmap.createBitmap(img.cols(), img.rows(), Bitmap.Config.ARGB_8888)

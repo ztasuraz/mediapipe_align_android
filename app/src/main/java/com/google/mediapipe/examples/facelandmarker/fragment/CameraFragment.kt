@@ -37,23 +37,16 @@ import androidx.fragment.app.activityViewModels
 import androidx.navigation.Navigation
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.viewpager2.widget.ViewPager2.SCROLL_STATE_DRAGGING
-import androidx.viewpager2.widget.ViewPager2.SCROLL_STATE_IDLE
-import androidx.viewpager2.widget.ViewPager2.SCROLL_STATE_SETTLING
-import androidx.viewpager2.widget.ViewPager2.ScrollState
 import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
 import com.google.mediapipe.examples.facelandmarker.MainViewModel
 import com.google.mediapipe.examples.facelandmarker.R
 import com.google.mediapipe.examples.facelandmarker.databinding.FragmentCameraBinding
 import com.google.mediapipe.examples.facelandmarker.viewmodels.KpsHandler
-import com.google.mediapipe.framework.image.BitmapExtractor
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import java.util.Locale
-import java.util.Optional
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import kotlin.jvm.optionals.toList
-import kotlin.math.roundToInt
 class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
 
     companion object {
@@ -340,7 +333,7 @@ class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
         preview = Preview.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3)
             .setTargetRotation(fragmentCameraBinding.viewFinder.display.rotation)
             .build()
-
+//        val a = preview!!.attachedSurfaceResolution
         // ImageAnalysis. Using RGBA 8888 to match how our models work
         imageAnalyzer =
             ImageAnalysis.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3)
@@ -408,7 +401,8 @@ class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
                     resultBundle.inputImageHeight,
                     resultBundle.inputImageWidth,
                     RunningMode.LIVE_STREAM,
-                    BitmapExtractor.extract(resultBundle.image)
+//                    BitmapExtractor.extract(resultBundle.image)
+                    resultBundle.image
                 )
                 // Force a redraw
                 fragmentCameraBinding.overlay.invalidate()

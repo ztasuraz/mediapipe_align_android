@@ -33,6 +33,7 @@ import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
 import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
 
 class FaceLandmarkerHelper(
     var minFaceDetectionConfidence: Float = DEFAULT_FACE_DETECTION_CONFIDENCE,
@@ -111,6 +112,7 @@ class FaceLandmarkerHelper(
                     .setMinFacePresenceConfidence(minFacePresenceConfidence)
                     .setNumFaces(maxNumFaces)
                     .setOutputFaceBlendshapes(false)
+                    .setOutputFacialTransformationMatrixes(true)
                     .setRunningMode(runningMode)
 
             // The ResultListener and ErrorListener only use for LIVE_STREAM mode.
@@ -321,7 +323,7 @@ class FaceLandmarkerHelper(
         faceLandmarker?.detect(mpImage)?.also { landmarkResult ->
             val inferenceTimeMs = SystemClock.uptimeMillis() - startTime
             return ResultBundle(
-                mpImage,
+                image,
                 landmarkResult,
                 inferenceTimeMs,
                 image.height,
@@ -343,22 +345,27 @@ class FaceLandmarkerHelper(
         input: MPImage
     ) {
 //        bmpImageLock.release()
+        // For comparison
         val asyncInput = BitmapExtractor.extract(input)
         if( result.faceLandmarks().size > 0 ) {
             val finishTimeMs = SystemClock.uptimeMillis()
             val frameTime = result.timestampMs()
             val inferenceTime = finishTimeMs - result.timestampMs()
             val bmpImage = this.imgStack.getFrameByTime(frameTime)
-
-            faceLandmarkerHelperListener?.onResults(
+            imgStack.cleanupOldFrames(TimeUnit.SECONDS.toMillis(15))
+            bmpImage?.let {
                 ResultBundle(
-                    input,
+                    it,
                     result,
                     inferenceTime,
                     input.height,
                     input.width
                 )
-            )
+            }?.let {
+                faceLandmarkerHelperListener?.onResults(
+                    it
+                )
+            }
         }
         else {
             faceLandmarkerHelperListener?.onEmpty()
@@ -388,7 +395,7 @@ class FaceLandmarkerHelper(
     }
 
     data class ResultBundle(
-        val image: MPImage,
+        val image: Bitmap,
         val result: FaceLandmarkerResult,
         val inferenceTime: Long,
         val inputImageHeight: Int,

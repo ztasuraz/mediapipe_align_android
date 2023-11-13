@@ -38,11 +38,11 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
     private var linePaint = Paint()
     private var pointPaint = Paint()
 
-    private var scaleFactor: Float = 1f
+    private var scaleFactor: Pair<Float, Float> = Pair(1f,1f)
     private var imageWidth: Int = 1
     private var imageHeight: Int = 1
 
-//    private var handler = KpsHandler()
+    private var handler = KpsHandler()
     init {
         initPaints()
     }
@@ -82,34 +82,49 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
                     }
                 }
             }
-
             for(landmark in faceLandmarkerResult.faceLandmarks()) {
                 for(normalizedLandmark in landmark) {
-                    canvas.drawPoint(normalizedLandmark.x() * imageWidth * scaleFactor, normalizedLandmark.y() * imageHeight * scaleFactor, pointPaint)
-                    Log.d("PointLog", "Draw coord: x = ${normalizedLandmark.x()* imageWidth * scaleFactor}, y = ${normalizedLandmark.y() * imageHeight * scaleFactor}")
+                    canvas.drawPoint(normalizedLandmark.x() * imageWidth * scaleFactor.first, normalizedLandmark.y() * imageHeight * scaleFactor.second, pointPaint)
+//                    Log.d("PointLog", "Draw cord: x = ${normalizedLandmark.x()* imageWidth * scaleFactor.first}, y = ${normalizedLandmark.y() * imageHeight * scaleFactor.second}")
                 }
             }
-            val transformedKps = KpsHandler().parseKps(faceLandmarkerResult.faceLandmarks()[0], imageWidth, imageHeight, true)
-            val points = transformedKps.toList()
-            for ((index, point) in points.withIndex()) {
-                canvas.drawPoint(point.x.toFloat() * scaleFactor, point.y.toFloat() * scaleFactor, pointPaint)
-
-//                Log.d("PointLog", "modifiedKps $index: x = ${point.x}, y = ${point.y}")
-            }
-            bmpImage?.let {
-                // not null do something
-                val transformedImg = KpsHandler().parseImg(bmpImage!!)
-                val alignedImg = KpsHandler().normCrop(transformedImg, transformedKps, full = true)
-                val bmpAlignedImg = KpsHandler().reparseImg(alignedImg)
-            }
-
             FaceLandmarker.FACE_LANDMARKS_CONNECTORS.forEach {
                 canvas.drawLine(
-                    faceLandmarkerResult.faceLandmarks().get(0).get(it!!.start()).x() * imageWidth * scaleFactor,
-                    faceLandmarkerResult.faceLandmarks().get(0).get(it.start()).y() * imageHeight * scaleFactor,
-                    faceLandmarkerResult.faceLandmarks().get(0).get(it.end()).x() * imageWidth * scaleFactor,
-                    faceLandmarkerResult.faceLandmarks().get(0).get(it.end()).y() * imageHeight * scaleFactor,
+                    faceLandmarkerResult.faceLandmarks().get(0).get(it!!.start()).x() * imageWidth * scaleFactor.first,
+                    faceLandmarkerResult.faceLandmarks().get(0).get(it.start()).y() * imageHeight * scaleFactor.second,
+                    faceLandmarkerResult.faceLandmarks().get(0).get(it.end()).x() * imageWidth * scaleFactor.first,
+                    faceLandmarkerResult.faceLandmarks().get(0).get(it.end()).y() * imageHeight * scaleFactor.second,
                     linePaint)
+            }
+
+            val transformedKps = handler.parseKps(faceLandmarkerResult.faceLandmarks()[0], imageWidth, imageHeight, true)
+            val points = transformedKps.toList()
+            for ((index, point) in points.withIndex()) {
+                canvas.drawPoint(point.x.toFloat() * scaleFactor.first, point.y.toFloat() * scaleFactor.second, pointPaint)
+//                Log.d("PointLog", "modifiedKps $index: x = ${point.x}, y = ${point.y}")
+            }
+            val transformedTransMatrix = handler.parseTransMatrix(results!!.facialTransformationMatrixes().get()[0])
+            val (pitch, yaw, roll) = transformedTransMatrix.sliceArray(0 until 3)
+
+            var straightFace = true
+            Log.d("FacePoseRevised", "Yaw: ${yaw}, Pitch: ${pitch}, Roll: $roll")
+            when {
+                yaw.toInt() in -15..20 && roll.toInt() in -20..20  && pitch.toInt() in -15..15 -> {
+                    Log.d("HeadPoseEstimation", "Face is straight")
+                }
+                else -> {
+                    straightFace = false
+                    Log.d("HeadPoseEstimation", "Face is not straight")
+                }
+            }
+            if (straightFace) {
+                bmpImage?.let {
+                    // not null do something
+                    val transformedImg = KpsHandler().parseImg(bmpImage!!)
+                    val alignedImg = KpsHandler().normCrop(transformedImg, transformedKps, full = true)
+                    val bmpAlignedImg = KpsHandler().reparseImg(alignedImg)
+                }
+                // Send bmp image to mFace server...
             }
         }
     }
@@ -125,17 +140,21 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
         bmpImage = image
         this.imageHeight = imageHeight
         this.imageWidth = imageWidth
-
+        val a = Pair(width, height)
         scaleFactor = when (runningMode) {
             RunningMode.IMAGE,
             RunningMode.VIDEO -> {
-                min(width * 1f / imageWidth, height * 1f / imageHeight)
+                val scale = min(width * 1f / imageWidth, height * 1f / imageHeight)
+                Pair(scale, scale)
+//                Pair(width * 1f / imageWidth, height * 1f / imageHeight)
             }
             RunningMode.LIVE_STREAM -> {
                 // PreviewView is in FILL_START mode. So we need to scale up the
                 // landmarks to match with the size that the captured images will be
                 // displayed.
-                max(width * 1f / imageWidth, height * 1f / imageHeight)
+                val scale = max(width * 1f / imageWidth, height * 1f / imageHeight)
+                Pair(scale, scale)
+//                Pair(width * 1f / imageWidth, height * 1f / imageHeight)
             }
         }
         invalidate()
