@@ -88,43 +88,49 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
 //                    Log.d("PointLog", "Draw cord: x = ${normalizedLandmark.x()* imageWidth * scaleFactor.first}, y = ${normalizedLandmark.y() * imageHeight * scaleFactor.second}")
                 }
             }
-            FaceLandmarker.FACE_LANDMARKS_CONNECTORS.forEach {
-                canvas.drawLine(
-                    faceLandmarkerResult.faceLandmarks().get(0).get(it!!.start()).x() * imageWidth * scaleFactor.first,
-                    faceLandmarkerResult.faceLandmarks().get(0).get(it.start()).y() * imageHeight * scaleFactor.second,
-                    faceLandmarkerResult.faceLandmarks().get(0).get(it.end()).x() * imageWidth * scaleFactor.first,
-                    faceLandmarkerResult.faceLandmarks().get(0).get(it.end()).y() * imageHeight * scaleFactor.second,
-                    linePaint)
-            }
+//            FaceLandmarker.FACE_LANDMARKS_CONNECTORS.forEach {
+//                canvas.drawLine(
+//                    faceLandmarkerResult.faceLandmarks().get(0).get(it!!.start()).x() * imageWidth * scaleFactor.first,
+//                    faceLandmarkerResult.faceLandmarks().get(0).get(it.start()).y() * imageHeight * scaleFactor.second,
+//                    faceLandmarkerResult.faceLandmarks().get(0).get(it.end()).x() * imageWidth * scaleFactor.first,
+//                    faceLandmarkerResult.faceLandmarks().get(0).get(it.end()).y() * imageHeight * scaleFactor.second,
+//                    linePaint)
+//            }
 
-            val transformedKps = handler.parseKps(faceLandmarkerResult.faceLandmarks()[0], imageWidth, imageHeight, true)
+            val (transformedKps, isNotInFrame) = handler.parseKps(faceLandmarkerResult.faceLandmarks()[0], imageWidth, imageHeight, true)
+            Log.d("FaceInFrame", "$isNotInFrame")
             val points = transformedKps.toList()
             for ((index, point) in points.withIndex()) {
                 canvas.drawPoint(point.x.toFloat() * scaleFactor.first, point.y.toFloat() * scaleFactor.second, pointPaint)
 //                Log.d("PointLog", "modifiedKps $index: x = ${point.x}, y = ${point.y}")
             }
-            val transformedTransMatrix = handler.parseTransMatrix(results!!.facialTransformationMatrixes().get()[0])
-            val (pitch, yaw, roll) = transformedTransMatrix.sliceArray(0 until 3)
+            if (faceLandmarkerResult.facialTransformationMatrixes().isPresent) {
+                val transformedTransMatrix =
+                    handler.parseTransMatrix(faceLandmarkerResult.facialTransformationMatrixes().get()[0])
+                val (pitch, yaw, roll) = transformedTransMatrix.sliceArray(0 until 3)
 
-            var straightFace = true
-            Log.d("FacePoseRevised", "Yaw: ${yaw}, Pitch: ${pitch}, Roll: $roll")
-            when {
-                yaw.toInt() in -15..20 && roll.toInt() in -20..20  && pitch.toInt() in -15..15 -> {
-                    Log.d("HeadPoseEstimation", "Face is straight")
+                var straightFace = true
+                Log.d("FacePoseRevised", "Yaw: ${yaw}, Pitch: ${pitch}, Roll: $roll")
+                when {
+                    yaw.toInt() in -15..20 && roll.toInt() in -20..20 && pitch.toInt() in -15..15 -> {
+                        Log.d("HeadPoseEstimation", "Face is straight")
+                    }
+
+                    else -> {
+                        straightFace = false
+                        Log.d("HeadPoseEstimation", "Face is not straight")
+                    }
                 }
-                else -> {
-                    straightFace = false
-                    Log.d("HeadPoseEstimation", "Face is not straight")
+                if (straightFace) {
+                    bmpImage?.let {
+                        // not null do something
+                        val transformedImg = KpsHandler().parseImg(bmpImage!!)
+                        val alignedImg =
+                            KpsHandler().normCrop(transformedImg, transformedKps, full = true)
+                        val bmpAlignedImg = KpsHandler().reparseImg(alignedImg)
+                    }
+                    // Send bmp image to mFace server...
                 }
-            }
-            if (straightFace) {
-                bmpImage?.let {
-                    // not null do something
-                    val transformedImg = KpsHandler().parseImg(bmpImage!!)
-                    val alignedImg = KpsHandler().normCrop(transformedImg, transformedKps, full = true)
-                    val bmpAlignedImg = KpsHandler().reparseImg(alignedImg)
-                }
-                // Send bmp image to mFace server...
             }
         }
     }

@@ -172,10 +172,10 @@ class KpsHandler {
         points2D: MutableList<Point>,
         width: Int,
         height: Int
-    ): MutableList<Point> {
+    ): Pair<MutableList<Point>, Boolean> {
         val scaledPoints = mutableListOf<Point>()
+        var exceedsDimensions = false
 
-        Log.d("PointLog", "Image size: Width = ${width}, Height = $height")
         for (point in points2D) {
             val scaledX = point.x * width
             val scaledY = point.y * height
@@ -187,13 +187,17 @@ class KpsHandler {
             val clippedPoint = Point(clippedX, clippedY)
             scaledPoints.add(clippedPoint)
 
-            // Log the scaled and clipped point
+            // Check if the point exceeds the dimensions
+            if (scaledX < 0.0 || scaledX > width.toDouble() || scaledY < 0.0 || scaledY > height.toDouble()) {
+                exceedsDimensions = true
+            }
 
+            // Log the scaled and clipped point
             Log.d("PointLog", "Original Point: x = ${point.x}, y = ${point.y}")
             Log.d("PointLog", "Scaled & Clipped Point: x = ${clippedPoint.x}, y = ${clippedPoint.y}")
         }
 
-        return scaledPoints
+        return Pair(scaledPoints, exceedsDimensions)
     }
 
 
@@ -225,8 +229,7 @@ class KpsHandler {
         return imageWithPoints
     }
 
-
-    fun parseKps(kps: List<NormalizedLandmark>, width: Int, height: Int, full: Boolean): MatOfPoint2f {
+    fun parseKps(kps: List<NormalizedLandmark>, width: Int, height: Int, full: Boolean): Pair<MatOfPoint2f, Boolean> {
         val modifiedKps = MatOfPoint2f()
         //  Loop through the list of NormalizedLandmark
         //  and add them to the MatOfPoint2f
@@ -252,11 +255,11 @@ class KpsHandler {
             points2D.add(Point(kps[leftMouth].x().toDouble(), kps[leftMouth].y().toDouble()))
             points2D.add(Point(kps[rightMouth].x().toDouble(), kps[rightMouth].y().toDouble()))
         }
-        val scaledPoints2D = scaleAndClipNormalizedPoints(points2D, width, height)
+        val (scaledPoints2D, exceedsDimensions) = scaleAndClipNormalizedPoints(points2D, width, height)
 
         modifiedKps.fromList(scaledPoints2D)
         printModifiedKps(modifiedKps)
-        return modifiedKps
+        return Pair(modifiedKps, exceedsDimensions)
     }
 
     fun parseTransMatrix(floatArrays: FloatArray): FloatArray {
